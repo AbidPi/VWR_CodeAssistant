@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEditor;
+using System.IO;
 
 namespace UnityCodeAssistant
 {
     public class UnityCodeAssistantWindow : EditorWindow
     {
+        private MonoScript selectedScript;
         private string prompt = "";
         private DefaultAsset folder;
         private string statusMessage = "";
@@ -42,6 +44,32 @@ namespace UnityCodeAssistant
             if (!string.IsNullOrEmpty(statusMessage))
             {
                 EditorGUILayout.HelpBox(statusMessage, MessageType.Info);
+            }
+            //adding file selection for existing script review
+            GUILayout.Space(20);
+            GUILayout.Label("Review Existing Script", EditorStyles.boldLabel);
+
+            selectedScript = (MonoScript)EditorGUILayout.ObjectField("Script File", selectedScript, typeof(MonoScript), false);
+
+            if (selectedScript != null)
+            {
+                if (GUILayout.Button("Load Script"))
+                {
+                    string path = AssetDatabase.GetAssetPath(selectedScript);
+
+                    if (File.Exists(path))
+                    {
+                        string scriptCode = File.ReadAllText(path);
+                        Debug.Log($"Loaded script from: {path}");
+                        Debug.Log(scriptCode);
+                        statusMessage = "Script loaded. Ready for analysis.";
+                    }
+                    else
+                    {
+                        Debug.LogError("Could not find the selected file.");
+                        statusMessage = "Failed to load the script.";
+                    }
+                }
             }
         }
 
