@@ -85,7 +85,7 @@ namespace UnityCodeAssistant
                     callback?.Invoke(false, "Failed to parse OpenAI response.");
                 }
             }
-            Debug.Log("Response JSON: " + request.downloadHandler.text);
+            //Debug.Log("Response JSON: " + request.downloadHandler.text);
 
         }
 

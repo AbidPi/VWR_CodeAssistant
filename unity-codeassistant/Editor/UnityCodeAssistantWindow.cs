@@ -53,16 +53,15 @@ namespace UnityCodeAssistant
 
             if (selectedScript != null)
             {
-                if (GUILayout.Button("Load Script"))
+                if (GUILayout.Button("Analyze Script"))
                 {
                     string path = AssetDatabase.GetAssetPath(selectedScript);
 
                     if (File.Exists(path))
                     {
                         string scriptCode = File.ReadAllText(path);
-                        Debug.Log($"Loaded script from: {path}");
-                        Debug.Log(scriptCode);
-                        statusMessage = "Script loaded. Ready for analysis.";
+                        statusMessage = "Analyzing script...";
+                        PromptHandler.AnalyzeScript(scriptCode, OnComplete);
                     }
                     else
                     {
@@ -70,12 +69,23 @@ namespace UnityCodeAssistant
                         statusMessage = "Failed to load the script.";
                     }
                 }
+
             }
         }
 
         private void OnComplete(bool success, string message)
         {
             statusMessage = message;
+            if (success)
+            {
+                Debug.Log("Analysis Result:\n" + message);
+                statusMessage = "Analysis complete. Check the console for suggestions.";
+            }
+            else
+            {
+                Debug.LogError(message);
+                statusMessage = message;
+            }
         }
     }
 }

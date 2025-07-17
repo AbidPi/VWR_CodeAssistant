@@ -48,5 +48,26 @@ Prompt: {prompt}
                 callback?.Invoke(result, message);
             });
         }
+        // Analyze an existing script for issues
+        public static void AnalyzeScript(string scriptCode, Action<bool, string> callback)
+        {
+            string analysisPrompt = $@"
+                You are a Unity C# expert.
+
+                Analyze the following MonoBehaviour script for:
+                - Compilation errors
+                - Logical bugs
+                - Common Unity mistakes
+                - Poor coding practices
+
+                If needed, return a corrected version of the script.
+
+                Script:
+                ```csharp
+                {scriptCode}
+                ";
+            OpenAIService.SendPrompt(analysisPrompt, callback);
+        }
+
     }
 }
