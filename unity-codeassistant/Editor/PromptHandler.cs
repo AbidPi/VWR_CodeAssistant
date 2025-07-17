@@ -1,12 +1,22 @@
 using System;
+using System.IO;
 using UnityEditor;
 
 namespace UnityCodeAssistant
 {
     public static class PromptHandler
     {
-        public static void GenerateScript(string prompt, string folderPath, Action<bool, string> callback)
+        public static void GenerateScript(string prompt, string folderPath, string filename, Action<bool, string> callback)
         {
+            if (string.IsNullOrEmpty(filename))
+            {
+                callback?.Invoke(false, "Filename is required.");
+                return;
+            }
+
+            // ⚠️ FIX: Do NOT hardcode this value. Use provided filename:
+            string savePath = Path.Combine(folderPath, filename.EndsWith(".cs") ? filename : filename + ".cs");
+
             string wrappedPrompt = $@"
 You are a Unity C# developer assistant.
 
@@ -30,47 +40,29 @@ Prompt: {prompt}
                     return;
                 }
 
-                // Extract code block manually if markdown exists
-                int codeStart = response.IndexOf("```csharp");
-                if (codeStart == -1) codeStart = response.IndexOf("```");
-
-                if (codeStart != -1)
-                {
-                    int codeEnd = response.IndexOf("```", codeStart + 3);
-                    if (codeEnd != -1)
-                    {
-                        response = response.Substring(codeStart + 9, codeEnd - (codeStart + 9)).Trim();
-                    }
-                }
-
-                string fileName = "GeneratedScript.cs"; // You can add filename extraction later
-                bool result = ScriptWriter.SaveScript(response, folderPath, fileName, out string message);
+                bool result = ScriptWriter.SaveScript(response, savePath, out string message);
                 callback?.Invoke(result, message);
             });
         }
-        // Analyze an existing script for issues
+
+        // Analyze method unchanged
         public static void AnalyzeScript(string scriptCode, Action<bool, string> callback)
         {
             string analysisPrompt = $@"
-            You are a Unity C# assistant.
+You are a Unity C# assistant.
 
-            Rewrite the following Unity MonoBehaviour script to include improvements directly in the code:
-            - Fix any compilation or logical errors
-            - Apply Unity best practices
-            - Add inline comments to explain any changes or suggestions
+Refactor the following Unity MonoBehaviour script by:
+- Fixing any compilation or logic issues
+- Applying Unity best practices
+- Adding inline comments where needed
 
-            Only return a clean, compilable Unity C# script with comments.
-            Do NOT include:
-            - Explanations
-            - Section headers
-            - Markdown formatting
-            - Anything outside the C# code
+⚠️ Return only clean Unity C# code — no explanations, no markdown, no ```csharp formatting.
 
-            Script:
-            {scriptCode}
-            ";
+Script:
+{scriptCode}
+";
+
             OpenAIService.SendPrompt(analysisPrompt, callback);
         }
-
     }
 }

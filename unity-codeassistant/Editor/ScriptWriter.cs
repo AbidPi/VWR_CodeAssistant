@@ -1,40 +1,35 @@
+using System;
 using System.IO;
-using UnityEditor;
-using UnityEngine;
 
 namespace UnityCodeAssistant
 {
     public static class ScriptWriter
     {
-        public static bool SaveScript(string scriptContent, string folderPath, string fileName, out string message)
+        public static bool SaveScript(string scriptContent, string fullPath, out string message)
         {
-            if (!Directory.Exists(folderPath))
-            {
-                message = "Target folder path does not exist.";
-                return false;
-            }
-
-            if (!fileName.EndsWith(".cs"))
-            {
-                fileName += ".cs";
-            }
-
-            string fullPath = Path.Combine(folderPath, fileName);
-
             try
             {
+                // Auto-strip markdown if somehow still included
+                if (scriptContent.StartsWith("```"))
+                {
+                    int start = scriptContent.IndexOf('\n');
+                    int end = scriptContent.LastIndexOf("```");
+                    if (start != -1 && end != -1 && end > start)
+                    {
+                        scriptContent = scriptContent.Substring(start + 1, end - start - 1).Trim();
+                    }
+                }
+
                 File.WriteAllText(fullPath, scriptContent);
-                AssetDatabase.Refresh();
                 message = $"Script saved to: {fullPath}";
+                UnityEditor.AssetDatabase.Refresh(); // Refresh Unity to see the new file
                 return true;
             }
-            catch (System.Exception e)
+            catch (Exception ex)
             {
-                message = $"Failed to save script: {e.Message}";
+                message = $"Failed to save script: {ex.Message}";
                 return false;
             }
         }
     }
 }
-// This script provides a utility to save generated Unity C# scripts to a specified folder.
-// It checks if the folder exists, appends the .cs extension if necessary, and writes the content to a file.

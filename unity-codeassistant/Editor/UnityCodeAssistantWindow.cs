@@ -1,19 +1,20 @@
 using UnityEditor;
 using UnityEngine;
 using System.IO;
+using System.Collections.Generic;
 
 namespace UnityCodeAssistant
 {
     public class UnityCodeAssistantWindow : EditorWindow
     {
         private string prompt = "";
-        private DefaultAsset folder;
         private string statusMessage = "";
         private MonoScript selectedScript;
 
         private string originalScriptCode = "";
         private string analyzedCode = "";
-        private string filename = "ImprovedScript.cs";
+        private string filename = "NewScript.cs";
+        private DefaultAsset folder;
 
         private Vector2 scrollOriginal;
         private Vector2 scrollModified;
@@ -32,18 +33,23 @@ namespace UnityCodeAssistant
             EditorGUILayout.LabelField("Enter your prompt:");
             prompt = EditorGUILayout.TextArea(prompt, GUILayout.Height(60));
 
+            filename = EditorGUILayout.TextField("Filename (e.g. PlayerController.cs):", filename);
             folder = (DefaultAsset)EditorGUILayout.ObjectField("Save Folder", folder, typeof(DefaultAsset), false);
 
             if (GUILayout.Button("Generate Script"))
             {
-                if (string.IsNullOrEmpty(prompt) || folder == null)
+                if (string.IsNullOrEmpty(prompt))
                 {
-                    statusMessage = "Please enter a prompt and choose a folder.";
+                    statusMessage = "Please enter a prompt.";
+                }
+                else if (folder == null)
+                {
+                    statusMessage = "Please choose a folder to save the script.";
                 }
                 else
                 {
                     string folderPath = AssetDatabase.GetAssetPath(folder);
-                    PromptHandler.GenerateScript(prompt, folderPath, OnComplete);
+                    PromptHandler.GenerateScript(prompt, folderPath, filename, OnComplete);
                     statusMessage = "Generating script...";
                 }
             }
@@ -58,24 +64,21 @@ namespace UnityCodeAssistant
 
             selectedScript = (MonoScript)EditorGUILayout.ObjectField("Script File", selectedScript, typeof(MonoScript), false);
 
-            if (selectedScript != null)
+            if (selectedScript != null && GUILayout.Button("Analyze Script"))
             {
-                if (GUILayout.Button("Analyze Script"))
-                {
-                    string path = AssetDatabase.GetAssetPath(selectedScript);
+                string path = AssetDatabase.GetAssetPath(selectedScript);
 
-                    if (File.Exists(path))
-                    {
-                        originalScriptCode = File.ReadAllText(path);
-                        statusMessage = "Analyzing script...";
-                        PromptHandler.AnalyzeScript(originalScriptCode, OnComplete);
-                        filename = Path.GetFileName(path); // default filename
-                    }
-                    else
-                    {
-                        Debug.LogError("Could not find the selected file.");
-                        statusMessage = "Failed to load the script.";
-                    }
+                if (File.Exists(path))
+                {
+                    originalScriptCode = File.ReadAllText(path);
+                    statusMessage = "Analyzing script...";
+                    PromptHandler.AnalyzeScript(originalScriptCode, OnAnalysisComplete);
+                    filename = Path.GetFileName(path);
+                }
+                else
+                {
+                    Debug.LogError("Could not find the selected file.");
+                    statusMessage = "Failed to load the script.";
                 }
             }
 
@@ -89,71 +92,137 @@ namespace UnityCodeAssistant
                     GUILayout.Label("Original vs Suggested", EditorStyles.boldLabel);
                     GUILayout.BeginHorizontal();
 
-                    // Left: Original Script
+                    var originalLines = originalScriptCode.Split('\n');
+                    var suggestedLines = analyzedCode.Split('\n');
+                    var diffs = GetLineDiff(originalLines, suggestedLines);
+
+                    // Left: Original (readonly)
                     GUILayout.BeginVertical(GUILayout.Width(position.width / 2 - 10));
                     GUILayout.Label("Original", EditorStyles.miniBoldLabel);
                     scrollOriginal = EditorGUILayout.BeginScrollView(scrollOriginal, GUILayout.Height(300));
-                    EditorGUILayout.TextArea(originalScriptCode, GUILayout.ExpandHeight(true));
+                    foreach (var diff in diffs)
+                    {
+                        if (diff.type == " " || diff.type == "-")
+                        {
+                            if (diff.type == "-")
+                                GUI.backgroundColor = new Color(1f, 0.85f, 0.85f);
+                            EditorGUILayout.SelectableLabel(diff.original, EditorStyles.textField, GUILayout.Height(16));
+                            GUI.backgroundColor = Color.white;
+                        }
+                    }
                     EditorGUILayout.EndScrollView();
                     GUILayout.EndVertical();
 
-                    // Right: Suggested Script (editable)
+                    // Right: Suggested (editable)
                     GUILayout.BeginVertical(GUILayout.Width(position.width / 2 - 10));
                     GUILayout.Label("Suggested", EditorStyles.miniBoldLabel);
                     scrollModified = EditorGUILayout.BeginScrollView(scrollModified, GUILayout.Height(300));
-                    analyzedCode = EditorGUILayout.TextArea(analyzedCode, GUILayout.ExpandHeight(true));
+
+                    GUIStyle greenStyle = new GUIStyle(EditorStyles.textField);
+                    greenStyle.normal.background = Texture2D.whiteTexture;
+                    greenStyle.normal.textColor = Color.black;
+
+                    List<string> editedLines = new List<string>();
+                    foreach (var diff in diffs)
+                    {
+                        if (diff.type == " " || diff.type == "+")
+                        {
+                            if (diff.type == "+")
+                                GUI.backgroundColor = new Color(0.85f, 1f, 0.85f);
+
+                            string edited = EditorGUILayout.TextField(diff.suggested, GUILayout.Height(16));
+                            editedLines.Add(edited);
+                            GUI.backgroundColor = Color.white;
+                        }
+                    }
+
+                    analyzedCode = string.Join("\n", editedLines);
                     EditorGUILayout.EndScrollView();
                     GUILayout.EndVertical();
 
                     GUILayout.EndHorizontal();
+
+                    if (GUILayout.Button("Apply Fixes"))
+                    {
+                        if (selectedScript != null)
+                        {
+                            string path = AssetDatabase.GetAssetPath(selectedScript);
+                            File.WriteAllText(path, analyzedCode);
+                            AssetDatabase.Refresh();
+                            statusMessage = "Fixes applied successfully.";
+                        }
+                    }
                 }
                 else
                 {
                     GUILayout.Label("Suggested Fixes (Editable)", EditorStyles.boldLabel);
                     analyzedCode = EditorGUILayout.TextArea(analyzedCode, GUILayout.Height(300));
-                }
 
-                filename = EditorGUILayout.TextField("Filename", filename);
-
-                GUILayout.BeginHorizontal();
-
-                if (GUILayout.Button("Save Changes"))
-                {
-                    if (selectedScript != null)
+                    if (GUILayout.Button("Save Changes"))
                     {
-                        string path = AssetDatabase.GetAssetPath(selectedScript);
-                        File.WriteAllText(path, analyzedCode);
-                        AssetDatabase.Refresh();
-                        statusMessage = "Original file overwritten.";
+                        if (selectedScript != null)
+                        {
+                            string path = AssetDatabase.GetAssetPath(selectedScript);
+                            File.WriteAllText(path, analyzedCode);
+                            AssetDatabase.Refresh();
+                            statusMessage = "Original file overwritten.";
+                        }
                     }
                 }
-
-                if (GUILayout.Button("Save as Version"))
-                {
-                    string folderPath = folder != null ? AssetDatabase.GetAssetPath(folder) : "Assets";
-                    string savePath = Path.Combine(folderPath, filename);
-                    File.WriteAllText(savePath, analyzedCode);
-                    AssetDatabase.Refresh();
-                    statusMessage = "File saved as a new version.";
-                }
-
-                GUILayout.EndHorizontal();
             }
         }
 
         private void OnComplete(bool success, string message)
         {
+            statusMessage = success ? message : $"Error: {message}";
+            Debug.Log(statusMessage);
+        }
+
+        private void OnAnalysisComplete(bool success, string message)
+        {
             if (success)
             {
                 analyzedCode = message;
-                statusMessage = "Analysis complete. You can now review and save.";
-                Debug.Log("Analysis Result:\n" + message);
+                statusMessage = "Analysis complete. Review and apply changes.";
             }
             else
             {
-                Debug.LogError(message);
+                analyzedCode = "";
                 statusMessage = message;
             }
+        }
+
+        private struct DiffLine
+        {
+            public string type;
+            public string original;
+            public string suggested;
+        }
+
+        private List<DiffLine> GetLineDiff(string[] original, string[] modified)
+        {
+            List<DiffLine> result = new List<DiffLine>();
+            int i = 0, j = 0;
+            while (i < original.Length && j < modified.Length)
+            {
+                if (original[i] == modified[j])
+                {
+                    result.Add(new DiffLine { type = " ", original = original[i], suggested = modified[j] });
+                    i++; j++;
+                }
+                else
+                {
+                    result.Add(new DiffLine { type = "-", original = original[i], suggested = "" });
+                    result.Add(new DiffLine { type = "+", original = "", suggested = modified[j] });
+                    i++; j++;
+                }
+            }
+            while (i < original.Length)
+                result.Add(new DiffLine { type = "-", original = original[i++], suggested = "" });
+            while (j < modified.Length)
+                result.Add(new DiffLine { type = "+", original = "", suggested = modified[j++] });
+
+            return result;
         }
     }
 }
