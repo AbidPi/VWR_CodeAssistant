@@ -52,20 +52,23 @@ Prompt: {prompt}
         public static void AnalyzeScript(string scriptCode, Action<bool, string> callback)
         {
             string analysisPrompt = $@"
-                You are a Unity C# expert.
+            You are a Unity C# assistant.
 
-                Analyze the following MonoBehaviour script for:
-                - Compilation errors
-                - Logical bugs
-                - Common Unity mistakes
-                - Poor coding practices
+            Rewrite the following Unity MonoBehaviour script to include improvements directly in the code:
+            - Fix any compilation or logical errors
+            - Apply Unity best practices
+            - Add inline comments to explain any changes or suggestions
 
-                If needed, return a corrected version of the script.
+            Only return a clean, compilable Unity C# script with comments.
+            Do NOT include:
+            - Explanations
+            - Section headers
+            - Markdown formatting
+            - Anything outside the C# code
 
-                Script:
-                ```csharp
-                {scriptCode}
-                ";
+            Script:
+            {scriptCode}
+            ";
             OpenAIService.SendPrompt(analysisPrompt, callback);
         }
 
