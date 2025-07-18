@@ -1,6 +1,6 @@
 {
     "name": "com.vwr.unity-codeassistant",
-    "version": "1.0.0",
+    "version": "1.3.0",
     "displayName": "Unity Code Assistant",
     "description": "Generate Unity C# scripts from natural language prompts using OpenAI.",
     "unity": "2022.3",

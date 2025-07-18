@@ -1,4 +1,4 @@
-# Unity Code Assistant (Internal) Version 1.0
+# Unity Code Assistant (Internal) Version 1.3
 
 An internal Unity Editor plugin powered by OpenAI that helps developers:
 - Generate new scripts from natural language prompts
