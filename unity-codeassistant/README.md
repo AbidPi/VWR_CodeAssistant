@@ -1,19 +1,23 @@
-# Unity Code Assistant ✨
+# Unity Code Assistant (Internal) Version 1.0
 
-A Unity Editor plugin that generates C# scripts from natural language using OpenAI's GPT API.
+An internal Unity Editor plugin powered by OpenAI that helps developers:
+- Generate new scripts from natural language prompts
+- Analyze existing Unity C# scripts
+- Suggest fixes and improvements
+- Show side-by-side diff with inline comments
 
-## Features
+## 🚀 Features
 
-- 🧠 Natural language prompt to C# script.
-- 🧰 Unity Editor integration (no extra setup).
-- 📁 Save to any folder inside your project.
-- 🔐 API key stored in EditorPrefs.
+- Script generation via OpenAI API
+- Code analysis for compilation issues and best practices
+- Side-by-side diff with color-coded edits
+- Editable output with manual apply/save
+- Works entirely inside Unity Editor
 
-## Installation
+---
 
-### Option 1: GitHub (UPM)
+## 🛠️ Installation
 
-Add this to your `Packages/manifest.json`:
+1. Clone or download this repository.
+2. Place it under `Packages/` in your Unity project.
 
-```json
-"com.vwr.unitycodeassistant": "https://github.com/AbidPi/unity-code-assistant.git"
